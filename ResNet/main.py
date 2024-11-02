@@ -4,6 +4,7 @@ from Model import Cifar
 
 import os
 import argparse
+import torch
 
 def configure():
     parser = argparse.ArgumentParser()
@@ -23,11 +24,16 @@ def main(config):
     print("--- Preparing Data ---")
 
     ### YOUR CODE HERE
-    data_dir = ""
+    data_dir = "dataset/cifar-10-batches-py"
     ### YOUR CODE HERE
 
     x_train, y_train, x_test, y_test = load_data(data_dir)
     x_train_new, y_train_new, x_valid, y_valid = train_vaild_split(x_train, y_train)
+
+    # Set the device to GPU if available
+    device = torch.device("cuda" if torch.cuda.is_available() and config.gpu >= 0 else "cpu")
+    print(device)
+    config.device = device
 
     model = Cifar(config).cuda()
 

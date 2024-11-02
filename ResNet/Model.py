@@ -21,6 +21,8 @@ class Cifar(nn.Module):
         self.loss = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.network.parameters(),  \
                              self.config.lr, weight_decay=self.config.weight_decay)
+        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=1/1.5)
+        self.train_loss_history = []
     
     def train(self, x_train, y_train, max_epoch):
         self.network.train()
@@ -46,13 +48,32 @@ class Cifar(nn.Module):
                 ### YOUR CODE HERE
                 # Construct the current batch.
                 # Don't forget to use "parse_record" to perform data preprocessing.
+                start_idx = i * self.config.batch_size
+                end_idx = (i + 1) * self.config.batch_size
+                batch_x = np.array([parse_record(record, training=True) for record in curr_x_train[start_idx:end_idx]])
+                batch_y = curr_y_train[start_idx:end_idx]
+
+                # Convert to torch tensors and move to configured device
+                batch_x = torch.tensor(batch_x, dtype=torch.float32).to(self.config.device)
+                batch_y = torch.tensor(batch_y, dtype=torch.long).to(self.config.device)
+
+                # Forward pass
+                logits = self.network(batch_x)
+                loss = self.loss_fn(logits, batch_y)
                 
                 ### YOUR CODE HERE
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
 
+                epoch_loss += loss.item()
                 print('Batch {:d}/{:d} Loss {:.6f}'.format(i, num_batches, loss), end='\r', flush=True)
+            
+
+            # Average loss for the epoch
+            avg_loss = epoch_loss / num_batches
+            self.train_loss_history.append(avg_loss)
+            self.scheduler.step()  # Update learning rate per epoch
             
             duration = time.time() - start_time
             print('Epoch {:d} Loss {:.6f} Duration {:.3f} seconds.'.format(epoch, loss, duration))
@@ -62,6 +83,13 @@ class Cifar(nn.Module):
                 
         ### YOUR CODE HERE
         #Plot the curves
+        # Plot the training loss curve
+        plt.plot(self.train_loss_history, label='Training Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.title('Training Loss Curve')
+        plt.legend()
+        plt.show()
 
         ### YOUR CODE HERE
 
@@ -74,14 +102,22 @@ class Cifar(nn.Module):
             self.load(checkpointfile)
 
             preds = []
-            for i in tqdm(range(x.shape[0])):
-                ### YOUR CODE HERE
-                
-                ### END CODE HERE
+            with torch.no_grad():
+                for i in tqdm(range(x.shape[0])):
+                    ### YOUR CODE HERE
+                    # Preprocess the input record and make predictions
+                    record = parse_record(x[i], training=False)
+                    record = torch.tensor(record, dtype=torch.float32).unsqueeze(0).to(self.config.device)
 
-            y = torch.tensor(y)
-            preds = torch.tensor(preds)
-            print('Test accuracy: {:.4f}'.format(torch.sum(preds==y)/y.shape[0]))
+                    logits = self.network(record)
+                    pred = torch.argmax(logits, dim=1).item()
+                    preds.append(pred)
+                    ### END CODE HERE
+
+            y_tensor = torch.tensor(y, dtype=torch.long).to(self.config.device)
+            preds_tensor = torch.tensor(preds, dtype=torch.long).to(self.config.device)
+            accuracy = torch.sum(preds_tensor == y_tensor).item() / y_tensor.size(0)
+            print('Checkpoint {} Test accuracy: {:.4f}'.format(checkpoint_num, accuracy))
     
     def save(self, epoch):
         checkpoint_path = os.path.join(self.config.modeldir, 'model-%d.ckpt'%(epoch))
@@ -90,6 +126,6 @@ class Cifar(nn.Module):
         print("Checkpoint has been created.")
     
     def load(self, checkpoint_name):
-        ckpt = torch.load(checkpoint_name, map_location="cpu")
+        ckpt = torch.load(checkpoint_name, map_location=self.config.device)
         self.network.load_state_dict(ckpt, strict=True)
         print("Restored model parameters from {}".format(checkpoint_name))
