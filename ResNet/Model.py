@@ -18,7 +18,7 @@ class Cifar(nn.Module):
         super(Cifar, self).__init__()
         self.config = config
         self.network = resnet18()
-        self.loss = nn.CrossEntropyLoss()
+        self.loss_fn = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.network.parameters(),  \
                              self.config.lr, weight_decay=self.config.weight_decay)
         self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=1/1.5)
@@ -43,7 +43,7 @@ class Cifar(nn.Module):
             # Manually update or use scheduler from pytorch
             
             ### YOUR CODE HERE
-            
+            epoch_loss = 0.0  # Track loss for the epoch
             for i in range(num_batches):
                 ### YOUR CODE HERE
                 # Construct the current batch.
