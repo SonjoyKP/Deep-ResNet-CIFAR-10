@@ -3,3 +3,5 @@ cifar-10-python.tar.gz
 models/*
 model_v1/*
 ResNet/models/*
+*__pycache__/*
+

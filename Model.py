@@ -83,7 +83,7 @@ class Cifar(nn.Module):
         ### YOUR CODE HERE
         #Plot the curves
         # Plot the training loss curve
-        plt.plot(self.train_loss_history, label='Training Loss')
+        plt.plot(self.train_loss_history, label=f"Training loss - LR: {self.config.lr}, Res: {self.config.use_residual}, BN: {self.config.use_bn}")
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.title('Training Loss Curve')
