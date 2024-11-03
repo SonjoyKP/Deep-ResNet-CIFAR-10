@@ -11,12 +11,13 @@ def configure():
     ### YOUR CODE HERE
     parser.add_argument("--batch_size", type=int, default=128, help='training batch size')
     parser.add_argument("--num_classes", type=int, default=10, help='number of classes')
-    parser.add_argument("--save_interval", type=int, default=10, 
-                        help='save the checkpoint when epoch MOD save_interval == 0')
+    parser.add_argument("--save_interval", type=int, default=10, help='save the checkpoint when epoch MOD save_interval == 0')
     parser.add_argument("--weight_decay", type=float, default=2e-4, help='weight decay rate')
-    parser.add_argument("--modeldir", type=str, default='model_v1', help='model directory')
+    parser.add_argument("--modeldir", type=str, default='models', help='model directory')
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--gpu", type=int, default=0)
+    parser.add_argument("--use_residual", type=bool, default=True, help='whether to use residual connections')
+    parser.add_argument("--use_bn", type=bool, default=True, help='whether to use batch normalization')
     ### YOUR CODE HERE
     return parser.parse_args()
 
@@ -41,10 +42,13 @@ def main(config):
     model.train(x_train_new, y_train_new, 100)
     model.test_or_validate(x_valid, y_valid, [80, 90, 100])
     model.test_or_validate(x_test, y_test, [100])
-
     ### END CODE HERE
 
 if __name__ == "__main__":
+    # Directory for saving models
     config = configure()
     os.environ['CUDA_VISIBLE_DEVICES'] = str(config.gpu)
+    os.makedirs(config.modeldir, exist_ok=True)
+    lr_modeldir = os.path.join(config.modeldir, str(config.lr))
+    os.makedirs(lr_modeldir, exist_ok=True)
     main(config)
