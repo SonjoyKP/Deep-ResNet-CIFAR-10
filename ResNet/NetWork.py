@@ -19,10 +19,14 @@ class BasicBlock(nn.Module):
     __constants__ = ['downsample']
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
-                 base_width=64, dilation=1, norm_layer=None):
+                 base_width=64, dilation=1, norm_layer=None, use_residual=True, use_bn=True):
         super(BasicBlock, self).__init__()
-        if norm_layer is None:
+        self.use_residual = use_residual
+        if use_bn or norm_layer is None:
             norm_layer = nn.BatchNorm2d
+        else:
+            norm_layer = nn.Identity
+
         if groups != 1 or base_width != 64:
             raise ValueError('BasicBlock only supports groups=1 and base_width=64')
         if dilation > 1:
@@ -49,7 +53,8 @@ class BasicBlock(nn.Module):
         if self.downsample is not None:
             identity = self.downsample(x)
 
-        out += identity
+        if self.use_residual:
+            out += identity
         out = self.relu(out)
 
         return out
@@ -58,10 +63,15 @@ class BasicBlock(nn.Module):
 class ResNet(nn.Module):
     def __init__(self, block, layers, num_classes=10, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
-                 norm_layer=None, last_activation=None):
+                 norm_layer=None, last_activation=None, use_residual=True, use_bn=True):
         super(ResNet, self).__init__()
-        if norm_layer is None:
+        self.use_residual = use_residual
+        
+        if use_bn or norm_layer is None:
             norm_layer = nn.BatchNorm2d
+        else:
+            norm_layer = nn.Identity
+        
         self._norm_layer = norm_layer
         self.last_activation = last_activation
         self.inplanes = 64
@@ -75,18 +85,14 @@ class ResNet(nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3,
-                               bias=False)
+        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = norm_layer(self.inplanes)
         self.relu = activation_func(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2,
-                                       dilate=replace_stride_with_dilation[0])
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2,
-                                       dilate=replace_stride_with_dilation[1])
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
-                                       dilate=replace_stride_with_dilation[2])
+        self.layer1 = self._make_layer(block, 64, layers[0], use_residual=use_residual, use_bn=use_bn)
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0], use_residual=use_residual, use_bn=use_bn)
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1], use_residual=use_residual, use_bn=use_bn)
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2], use_residual=use_residual, use_bn=use_bn)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512 * block.expansion, num_classes)
         if self.last_activation is not None:
@@ -107,8 +113,14 @@ class ResNet(nn.Module):
             for m in self.modules():
                 nn.init.constant_(m.bn2.weight, 0)
 
-    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+    def _make_layer(self, block, planes, blocks, stride=1, dilate=False, use_residual=True, use_bn=True):
         norm_layer = self._norm_layer
+
+        if use_bn or norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        else:
+            norm_layer = nn.Identity
+        
         downsample = None
         previous_dilation = self.dilation
         if dilate:
@@ -122,12 +134,12 @@ class ResNet(nn.Module):
 
         layers = []
         layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
-                            self.base_width, previous_dilation, norm_layer))
+                            self.base_width, previous_dilation, norm_layer, use_residual=use_residual, use_bn=use_bn))
         self.inplanes = planes * block.expansion
         for _ in range(1, blocks):
             layers.append(block(self.inplanes, planes, groups=self.groups,
                                 base_width=self.base_width, dilation=self.dilation,
-                                norm_layer=norm_layer))
+                                norm_layer=norm_layer, use_residual=use_residual, use_bn=use_bn))
 
         return nn.Sequential(*layers)
 
@@ -160,12 +172,12 @@ class ResNet(nn.Module):
         return self._forward_impl(x)
 
 
-def resnet18(**kwargs):
+def resnet18(use_residual=True, use_bn=True, **kwargs):
     r"""ResNet-18 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
     """
     global activation_func
     activation_func = nn.ReLU
-    model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
+    model = ResNet(BasicBlock, [2, 2, 2, 2], use_residual=True, use_bn=True, **kwargs)
  
     return model

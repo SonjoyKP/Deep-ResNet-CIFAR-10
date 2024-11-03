@@ -18,9 +18,8 @@ class Cifar(nn.Module):
         super(Cifar, self).__init__()
         self.config = config
         self.network = resnet18()
-        self.loss_fn = nn.CrossEntropyLoss()
-        self.optimizer = optim.Adam(self.network.parameters(),  \
-                             self.config.lr, weight_decay=self.config.weight_decay)
+        self.loss_fn = nn.CrossEntropyLoss(use_residual=config.use_residual, use_bn=config.use_bn)
+        self.optimizer = optim.Adam(self.network.parameters(),  self.config.lr, weight_decay=self.config.weight_decay)
         self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=1/1.5)
         self.train_loss_history = []
     
