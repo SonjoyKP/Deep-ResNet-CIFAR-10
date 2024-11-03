@@ -128,3 +128,74 @@ class Cifar(nn.Module):
         ckpt = torch.load(checkpoint_name, map_location=self.config.device)
         self.network.load_state_dict(ckpt, strict=True)
         print("Restored model parameters from {}".format(checkpoint_name))
+
+    def train_test(self, x_train, y_train, x_test, y_test, max_epoch):
+        self.network.train()
+        train_loss_history = []
+        test_loss_history = []
+        # Determine how many batches in an epoch
+        num_samples = x_train.shape[0]
+        num_batches = num_samples // self.config.batch_size
+
+        print('### Training... ###')
+        for epoch in range(1, max_epoch+1):
+            start_time = time.time()
+            # Shuffle
+            shuffle_index = np.random.permutation(num_samples)
+            curr_x_train = x_train[shuffle_index]
+            curr_y_train = y_train[shuffle_index]
+
+            ### YOUR CODE HERE
+            # Set the learning rate for this epoch
+            # Manually update or use scheduler from pytorch
+            
+            ### YOUR CODE HERE
+            epoch_loss = 0.0  # Track loss for the epoch
+            for i in range(num_batches):
+                ### YOUR CODE HERE
+                # Construct the current batch.
+                # Don't forget to use "parse_record" to perform data preprocessing.
+                start_idx = i * self.config.batch_size
+                end_idx = (i + 1) * self.config.batch_size
+                batch_x = np.array([parse_record(record, training=True) for record in curr_x_train[start_idx:end_idx]])
+                batch_y = curr_y_train[start_idx:end_idx]
+
+                # Convert to torch tensors and move to configured device
+                batch_x = torch.tensor(batch_x, dtype=torch.float32).to(self.config.device)
+                batch_y = torch.tensor(batch_y, dtype=torch.long).to(self.config.device)
+
+                # Forward pass
+                logits = self.network(batch_x)
+                loss = self.loss_fn(logits, batch_y)
+                
+                ### YOUR CODE HERE
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+
+                epoch_loss += loss.item()
+                print('Batch {:d}/{:d} Loss {:.6f}'.format(i, num_batches, loss), end='\r', flush=True)
+            
+
+            # Average loss for the epoch
+            avg_loss = epoch_loss / num_batches
+            train_loss_history.append(avg_loss)
+            self.scheduler.step()  # Update learning rate per epoch
+            
+            duration = time.time() - start_time
+            print('Epoch {:d} Loss {:.6f} Duration {:.3f} seconds.'.format(epoch, loss, duration))
+
+            if epoch % self.config.save_interval == 0:
+                self.save(epoch)
+                
+        ### YOUR CODE HERE
+        #Plot the curves
+        # Plot the training loss curve
+        plt.plot(self.train_loss_history, label=f"Training loss - LR: {self.config.lr}, Res: {self.config.use_residual}, BN: {self.config.use_bn}")
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.title('Training Loss Curve')
+        plt.legend()
+        plt.show()
+
+        ### YOUR CODE HERE
