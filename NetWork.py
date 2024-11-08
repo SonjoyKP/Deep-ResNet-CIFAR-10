@@ -178,6 +178,6 @@ def resnet18(use_residual=True, use_bn=True, **kwargs):
     """
     global activation_func
     activation_func = nn.ReLU
-    model = ResNet(BasicBlock, [2, 2, 2, 2], use_residual=True, use_bn=True, **kwargs)
+    model = ResNet(BasicBlock, [2, 2, 2, 2], use_residual=use_residual, use_bn=use_bn, **kwargs)
  
     return model
