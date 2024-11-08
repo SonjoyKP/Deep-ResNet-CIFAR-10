@@ -231,7 +231,7 @@ class Cifar(nn.Module):
         plt.plot(range(10, max_epoch + 1, 10), self.testing_loss_history, label="Testing Loss", marker='o')
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
-        plt.title(f"Loss Curves - Residual: {self.config.use_residual}, BatchNorm: {self.config.use_bn}, Accuracy: {final_accuracy:.4f}")
+        plt.title(f"Loss Curves - LR:{self.config.lr}, Res: {self.config.use_residual}, BN: {self.config.use_bn}, Acc: {final_accuracy:.4f}")
         plt.legend()
         plt.show()
 
